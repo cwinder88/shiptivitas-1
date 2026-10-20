@@ -8,19 +8,53 @@ export default class Board extends React.Component {
   constructor(props) {
     super(props);
     const clients = this.getClients();
+
     this.state = {
       clients: {
-        backlog: clients.filter(client => !client.status || client.status === 'backlog'),
-        inProgress: clients.filter(client => client.status && client.status === 'in-progress'),
-        complete: clients.filter(client => client.status && client.status === 'complete'),
+        backlog: clients.filter(c => !c.status || c.status === 'backlog'),
+        inProgress: clients.filter(c => c.status === 'in-progress'),
+        complete: clients.filter(c => c.status === 'complete'),
       }
-    }
+    };
+
     this.swimlanes = {
       backlog: React.createRef(),
       inProgress: React.createRef(),
       complete: React.createRef(),
-    }
+    };
   }
+
+  componentDidMount() {
+    const containers = [
+      this.swimlanes.backlog.current,
+      this.swimlanes.inProgress.current,
+      this.swimlanes.complete.current
+    ];
+
+    const drake = Dragula(containers);
+
+    drake.on('drop', (el, target) => {
+      const id = el.getAttribute('data-id');
+      const newStatus = target.getAttribute('data-status');
+
+      this.setState(prev => {
+        const updated = { backlog: [], inProgress: [], complete: [] };
+
+        Object.keys(prev.clients).forEach(lane => {
+          prev.clients[lane].forEach(client => {
+            if (client.id === id) {
+              updated[newStatus].push({ ...client, status: newStatus });
+            } else {
+              updated[client.status].push(client);
+            }
+          });
+        });
+
+        return { clients: updated };
+      });
+    });
+  }
+
   getClients() {
     return [
       ['1','Stark, White and Abbott','Cloned Optimal Architecture', 'in-progress'],
@@ -50,9 +84,17 @@ export default class Board extends React.Component {
       status: companyDetails[3],
     }));
   }
+
   renderSwimlane(name, clients, ref) {
+    const statusKey = name.toLowerCase().replace(' ', '-'); // backlog, in-progress, complete
+
     return (
-      <Swimlane name={name} clients={clients} dragulaRef={ref}/>
+      <Swimlane
+        name={name}
+        clients={clients}
+        dragulaRef={ref}
+        status={statusKey}
+      />
     );
   }
 
@@ -62,13 +104,13 @@ export default class Board extends React.Component {
         <div className="container-fluid">
           <div className="row">
             <div className="col-md-4">
-              {this.renderSwimlane('Backlog', this.state.clients.backlog, this.swimlanes.backlog)}
+              {this.renderSwimlane('backlog', this.state.clients.backlog, this.swimlanes.backlog)}
             </div>
             <div className="col-md-4">
-              {this.renderSwimlane('In Progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
+              {this.renderSwimlane('in-progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
             </div>
             <div className="col-md-4">
-              {this.renderSwimlane('Complete', this.state.clients.complete, this.swimlanes.complete)}
+              {this.renderSwimlane('complete', this.state.clients.complete, this.swimlanes.complete)}
             </div>
           </div>
         </div>
